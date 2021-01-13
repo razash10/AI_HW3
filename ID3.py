@@ -4,12 +4,10 @@ import pandas as pd
 
 
 class Node:
-    """Contains the information of the node and another nodes of the Decision Tree."""
-
     def __init__(self, feature: string, objects: pd.DataFrame, default_c="", split_val=0.0):
         self.feature = feature
         self.objects = objects
-        self.children = {}  # { value : Node }
+        self.children = {}  # { binary-value : Node }
         self.c = default_c
         self.entropy = self._entropy()
         self.split_val = split_val
