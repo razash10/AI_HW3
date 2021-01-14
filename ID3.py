@@ -1,6 +1,7 @@
 import math
 import string
 import pandas as pd
+from sklearn.model_selection import KFold
 
 
 class Node:
@@ -76,7 +77,7 @@ def max_info_gain(objects: pd.DataFrame, features: set) -> (string, float):
     return best_feature, best_split_value
 
 
-def ID3(examples: pd.DataFrame, features: set, default_c=None):
+def ID3(examples: pd.DataFrame, features: set, default_c=None, M=0):
     if len(examples) == 0:
         return Node("", pd.DataFrame(), default_c)
 
@@ -89,6 +90,9 @@ def ID3(examples: pd.DataFrame, features: set, default_c=None):
     if is_consistent_node or len(features) == 0:
         return Node("", pd.DataFrame(), majority_class)
 
+    if M > 0 and len(examples) < M:
+        return Node("", pd.DataFrame(), majority_class)
+
     best_feature, split_value = max_info_gain(examples, features)
 
     sub_tree = Node(best_feature, examples, majority_class, split_value)
@@ -97,8 +101,8 @@ def ID3(examples: pd.DataFrame, features: set, default_c=None):
 
     left_examples = examples[examples[best_feature] <= split_value]
     right_examples = examples[examples[best_feature] > split_value]
-    left_son = ID3(left_examples, features, majority_class)
-    right_son = ID3(right_examples, features, majority_class)
+    left_son = ID3(left_examples, features, majority_class, M)
+    right_son = ID3(right_examples, features, majority_class, M)
     sub_tree.children[0] = left_son
     sub_tree.children[1] = right_son
 
@@ -123,13 +127,10 @@ def DT_Classify(obj: pd.Series, tree: Node) -> string:
         assert True
 
 
-def main():
-    train_data = pd.read_csv("train.csv")
+def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
     features = set(train_data)
     features.remove('diagnosis')
-    train_tree = ID3(train_data, features)
-
-    test_data = pd.read_csv("test.csv")
+    train_tree = ID3(train_data, features, M)
     count_hits = 0
     count_misses = 0
     for i, row in test_data.iterrows():
@@ -142,8 +143,28 @@ def main():
 
     res = count_hits / (count_hits + count_misses)
 
-    print(res)
+    return res
+
+
+def main():
+    train_data = pd.read_csv("train.csv")
+    test_data = pd.read_csv("test.csv")
+
+    print(train_and_test(train_data, test_data))
+
+
+def main2():
+    all_train_data = pd.read_csv("train.csv")
+    kf = KFold(n_splits=5, shuffle=True, random_state=123456789)
+    res = 0
+
+    for train_index, test_index in kf.split(all_train_data):
+        train_data = all_train_data.iloc[train_index]
+        test_data = all_train_data.iloc[test_index]
+        res += train_and_test(train_data, test_data, M=1)
+
+    print(res / 5)
 
 
 if __name__ == "__main__":
-    main()
+    main2()
