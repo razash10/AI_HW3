@@ -155,12 +155,12 @@ def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
     return res
 
 
-# Change from main() to experiment() in the last line
+# Add experiment() call below main() in the last line of this file
 def experiment():
     all_train_data = pd.read_csv("train.csv")
     kf = KFold(n_splits=5, shuffle=True, random_state=311177034)
 
-    list_M = [1, 10, 30, 60, 100]
+    list_M = [1, 2, 4, 8, 16]
     list_ACC = []
     acc = 0
 
