@@ -38,8 +38,8 @@ class Node:
 
 
 def ig_by_split_value(df: pd.DataFrame, feature: string, split_value: float) -> float:
-    left_df = df[df[feature] <= split_value]
-    right_df = df[df[feature] >= split_value]
+    left_df = df[df[feature] < split_value]
+    right_df = df[df[feature] > split_value]
 
     left_df_count = left_df.shape[0]
     right_df_count = right_df.shape[0]
@@ -57,19 +57,20 @@ def ig_by_split_value(df: pd.DataFrame, feature: string, split_value: float) -> 
     return ig
 
 
-def max_info_gain(objects: pd.DataFrame, features: set) -> (string, float):
+def max_info_gain(objects: pd.DataFrame, features: list) -> (string, float):
     max_ig = -1.0
     best_feature = ""
     best_split_value = 0
 
     for feature in features:
         df = objects.sort_values(by=feature)
-        for i in range(df.shape[0]-1):
-            var1 = df[feature].values[i]
-            var2 = df[feature].values[i+1]
+        feature_column_l = list(dict.fromkeys(df[feature].tolist()))
+        for i in range(len(feature_column_l)-1):
+            var1 = feature_column_l[i]
+            var2 = feature_column_l[i+1]
             split_value = (var1 + var2) / 2
             ig = ig_by_split_value(df, feature, split_value)
-            if best_feature is None or ig > max_ig:
+            if best_feature is None or ig >= max_ig:
                 max_ig = ig
                 best_feature = feature
                 best_split_value = split_value
@@ -77,7 +78,7 @@ def max_info_gain(objects: pd.DataFrame, features: set) -> (string, float):
     return best_feature, best_split_value
 
 
-def ID3(examples: pd.DataFrame, features: set, default_c=None, M=0):
+def ID3(examples: pd.DataFrame, features: list, default_c=None, M=0):
     if len(examples) == 0:
         return Node("", pd.DataFrame(), default_c)
 
@@ -90,19 +91,25 @@ def ID3(examples: pd.DataFrame, features: set, default_c=None, M=0):
     if is_consistent_node or len(features) == 0:
         return Node("", pd.DataFrame(), majority_class)
 
-    if M > 0 and len(examples) < M:
-        return Node("", pd.DataFrame(), majority_class)
-
     best_feature, split_value = max_info_gain(examples, features)
 
     sub_tree = Node(best_feature, examples, majority_class, split_value)
 
     examples.sort_values(by=best_feature)
 
-    left_examples = examples[examples[best_feature] <= split_value]
+    left_examples = examples[examples[best_feature] < split_value]
     right_examples = examples[examples[best_feature] > split_value]
-    left_son = ID3(left_examples, features, majority_class, M)
-    right_son = ID3(right_examples, features, majority_class, M)
+
+    if len(left_examples) < M:
+        left_son = Node("", pd.DataFrame(), majority_class)
+    else:
+        left_son = ID3(left_examples, features, majority_class, M)
+
+    if len(right_examples) < M:
+        right_son = Node("", pd.DataFrame(), majority_class)
+    else:
+        right_son = ID3(right_examples, features, majority_class, M)
+
     sub_tree.children[0] = left_son
     sub_tree.children[1] = right_son
 
@@ -119,7 +126,7 @@ def DT_Classify(obj: pd.Series, tree: Node) -> string:
     left_son = tree.children[0]
     right_son = tree.children[1]
 
-    if obj_value <= tree.split_val:
+    if obj_value < tree.split_val:
         return DT_Classify(obj, left_son)
     elif obj_value > tree.split_val:
         return DT_Classify(obj, right_son)
@@ -128,9 +135,9 @@ def DT_Classify(obj: pd.Series, tree: Node) -> string:
 
 
 def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
-    features = set(train_data)
+    features = list(train_data)
     features.remove('diagnosis')
-    train_tree = ID3(train_data, features, M)
+    train_tree = ID3(train_data, features, None, M)
     count_hits = 0
     count_misses = 0
     for i, row in test_data.iterrows():
@@ -158,12 +165,23 @@ def main2():
     kf = KFold(n_splits=5, shuffle=True, random_state=123456789)
     res = 0
 
-    for train_index, test_index in kf.split(all_train_data):
-        train_data = all_train_data.iloc[train_index]
-        test_data = all_train_data.iloc[test_index]
-        res += train_and_test(train_data, test_data, M=1)
+    array_M = [1, 2, 3, 5, 8, 16, 30, 50, 80, 120]
 
-    print(res / 5)
+    array_res = []
+
+    for m in array_M:
+        for train_index, test_index in kf.split(all_train_data):
+            train_data = all_train_data.iloc[train_index]
+            test_data = all_train_data.iloc[test_index]
+            res += train_and_test(train_data, test_data, m)
+        res /= 5
+
+        array_res.append(res)
+        print("M="+str(m)+" res="+str(res))
+
+        res = 0
+
+    print(array_res)
 
 
 if __name__ == "__main__":
