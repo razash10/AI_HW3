@@ -2,6 +2,8 @@ import math
 import string
 import pandas as pd
 from sklearn.model_selection import KFold
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class Node:
@@ -65,9 +67,9 @@ def max_info_gain(objects: pd.DataFrame, features: list) -> (string, float):
     for feature in features:
         df = objects.sort_values(by=feature)
         feature_column_l = list(dict.fromkeys(df[feature].tolist()))
-        for i in range(len(feature_column_l)-1):
+        for i in range(len(feature_column_l) - 1):
             var1 = feature_column_l[i]
-            var2 = feature_column_l[i+1]
+            var2 = feature_column_l[i + 1]
             split_value = (var1 + var2) / 2
             ig = ig_by_split_value(df, feature, split_value)
             if best_feature is None or ig >= max_ig:
@@ -153,6 +155,43 @@ def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
     return res
 
 
+# Change from main() to experiment() in the last line
+def experiment():
+    all_train_data = pd.read_csv("train.csv")
+    kf = KFold(n_splits=5, shuffle=True, random_state=311177034)
+
+    list_M = [1, 10, 30, 60, 100]
+    list_ACC = []
+    acc = 0
+
+    for m in list_M:
+        for train_index, test_index in kf.split(all_train_data):
+            train_data = all_train_data.iloc[train_index]
+            test_data = all_train_data.iloc[test_index]
+            acc += train_and_test(train_data, test_data, m)
+        acc /= 5
+        list_ACC.append(acc)
+        acc = 0
+
+    plot_graph(list_M, list_ACC)
+
+
+def plot_graph(x_list, y_list):
+    x = np.array(x_list)
+    y = np.array(y_list)
+
+    fig, ax = plt.subplots(1)
+
+    ax.plot(x, y, marker='o', markerfacecolor='blue', markersize=3)
+
+    plt.xlabel('M-Value')
+    plt.ylabel('Accuracy')
+
+    plt.title('Experiment\'s results')
+
+    plt.show()
+
+
 def main():
     train_data = pd.read_csv("train.csv")
     test_data = pd.read_csv("test.csv")
@@ -160,29 +199,5 @@ def main():
     print(train_and_test(train_data, test_data))
 
 
-def main2():
-    all_train_data = pd.read_csv("train.csv")
-    kf = KFold(n_splits=5, shuffle=True, random_state=123456789)
-    res = 0
-
-    array_M = [1, 2, 3, 5, 8, 16, 30, 50, 80, 120]
-
-    array_res = []
-
-    for m in array_M:
-        for train_index, test_index in kf.split(all_train_data):
-            train_data = all_train_data.iloc[train_index]
-            test_data = all_train_data.iloc[test_index]
-            res += train_and_test(train_data, test_data, m)
-        res /= 5
-
-        array_res.append(res)
-        print("M="+str(m)+" res="+str(res))
-
-        res = 0
-
-    print(array_res)
-
-
 if __name__ == "__main__":
-    main2()
+    experiment()
