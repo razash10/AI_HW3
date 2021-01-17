@@ -1,16 +1,13 @@
 import math
 import string
 import pandas as pd
-from sklearn.model_selection import KFold
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 class Node:
     def __init__(self, feature: string, objects: pd.DataFrame, default_c="", split_val=0.0):
         self.feature = feature
         self.objects = objects
-        self.children = {}  # { binary-value : Node }
+        self.children = {}  # { 0 : LeftNode , 1 : RightNode }
         self.c = default_c
         self.entropy = self._entropy()
         self.split_val = split_val
@@ -30,6 +27,9 @@ class Node:
 
         prob_b = count_b / count_rows
         prob_m = count_m / count_rows
+
+        """if prob_b >= 0.5:
+                return 1"""
 
         log2_prob_b = math.log2(prob_b)
         log2_prob_m = math.log2(prob_m)
@@ -80,7 +80,7 @@ def max_info_gain(objects: pd.DataFrame, features: list) -> (string, float):
     return best_feature, best_split_value
 
 
-def ID3(examples: pd.DataFrame, features: list, default_c=None, M=0):
+def ID3(examples: pd.DataFrame, features: list, default_c=None, N=0):
     if len(examples) == 0:
         return Node("", pd.DataFrame(), default_c)
 
@@ -102,15 +102,20 @@ def ID3(examples: pd.DataFrame, features: list, default_c=None, M=0):
     left_examples = examples[examples[best_feature] < split_value]
     right_examples = examples[examples[best_feature] > split_value]
 
-    if len(left_examples) < M:
+    count_left_b = left_examples[left_examples.diagnosis == 'B'].shape[0]
+    count_right_b = right_examples[right_examples.diagnosis == 'B'].shape[0]
+    count_left_m = left_examples[left_examples.diagnosis == 'M'].shape[0]
+    count_right_m = right_examples[right_examples.diagnosis == 'M'].shape[0]
+
+    if 0 < (count_left_b - count_left_m) < N:
         left_son = Node("", pd.DataFrame(), majority_class)
     else:
-        left_son = ID3(left_examples, features, majority_class, M)
+        left_son = ID3(left_examples, features, majority_class, N)
 
-    if len(right_examples) < M:
+    if 0 < (count_right_b - count_right_m) < N:
         right_son = Node("", pd.DataFrame(), majority_class)
     else:
-        right_son = ID3(right_examples, features, majority_class, M)
+        right_son = ID3(right_examples, features, majority_class, N)
 
     sub_tree.children[0] = left_son
     sub_tree.children[1] = right_son
@@ -136,67 +141,10 @@ def DT_Classify(obj: pd.Series, tree: Node) -> string:
         assert True
 
 
-def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
+def get_loss(train_data: pd.DataFrame, test_data: pd.DataFrame, N=0):
     features = list(train_data)
     features.remove('diagnosis')
-    train_tree = ID3(train_data, features, None, M)
-    count_hits = 0
-    count_misses = 0
-    for i, row in test_data.iterrows():
-        c_classified = DT_Classify(row, train_tree)
-        c_actual = row[0]
-        if c_classified == c_actual:
-            count_hits += 1
-        else:
-            count_misses += 1
-
-    res = count_hits / (count_hits + count_misses)
-
-    return res
-
-
-# Add experiment() call below main() in the last line of this file
-def experiment():
-    all_train_data = pd.read_csv("train.csv")
-    kf = KFold(n_splits=5, shuffle=True, random_state=311177034)
-
-    list_M = [1, 2, 4, 8, 16]
-    list_ACC = []
-    acc = 0
-
-    for m in list_M:
-        for train_index, test_index in kf.split(all_train_data):
-            train_data = all_train_data.iloc[train_index]
-            test_data = all_train_data.iloc[test_index]
-            acc += train_and_test(train_data, test_data, m)
-        acc /= 5
-        list_ACC.append(acc)
-        acc = 0
-
-    plot_graph(list_M, list_ACC)
-
-
-def plot_graph(x_list, y_list):
-    x = np.array(x_list)
-    y = np.array(y_list)
-
-    fig, ax = plt.subplots(1)
-
-    ax.plot(x, y, marker='o', markerfacecolor='blue', markersize=3)
-
-    plt.xlabel('M-Value')
-    plt.ylabel('Accuracy')
-
-    plt.title('Experiment\'s results')
-
-    plt.show()
-
-
-# Used for question 4.1
-def get_loss(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
-    features = list(train_data)
-    features.remove('diagnosis')
-    train_tree = ID3(train_data, features, None, M)
+    train_tree = ID3(train_data, features, None, N)
     fp = 0
     fn = 0
     n = 0
@@ -218,7 +166,7 @@ def main():
     train_data = pd.read_csv("train.csv")
     test_data = pd.read_csv("test.csv")
 
-    print(train_and_test(train_data, test_data))
+    print(get_loss(train_data, test_data, N=10))
 
 
 if __name__ == "__main__":
