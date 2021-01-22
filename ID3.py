@@ -130,10 +130,8 @@ def DT_Classify(obj: pd.Series, tree: Node) -> string:
 
     if obj_value < tree.split_val:
         return DT_Classify(obj, left_son)
-    elif obj_value > tree.split_val:
+    elif obj_value >= tree.split_val:
         return DT_Classify(obj, right_son)
-    else:
-        assert True
 
 
 def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
@@ -222,4 +220,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    experiment()  # change from main() to experiment() for question 4.1
