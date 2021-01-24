@@ -4,11 +4,48 @@ import numpy as np
 from collections import Counter
 
 
+def n_farthest_objects_by_indexes(train_data: pd.DataFrame, N: int):
+    farthest_indexes = []
+    n = len(train_data.index)
+    distances = np.zeros((n, n))
+    for i, row1 in train_data.iterrows():
+        row1_array = np.array(row1)[1:]
+        for j, row2 in train_data.iterrows():
+            if i < j:
+                row2_array = np.array(row2)[1:]
+                distances[i][j] = np.linalg.norm(row1_array - row2_array)
+    sum_list = list(distances.sum(axis=0))
+    for i in range(len(train_data.index)):
+        sum_list[i] = (sum_list[i], i)
+    sum_list.sort(reverse=True)
+    return sum_list[:N]
+
+
+def n_closest_objects_by_indexes(root: pd.Series, train_data: pd.DataFrame, n: int):
+    closest_objects = []
+    root_array = np.array(root)[1:]
+    for i, row in train_data.iterrows():
+        row_array = np.array(row)[1:]
+        euclidean_dist = np.linalg.norm(root_array - row_array)
+        closest_objects.append((euclidean_dist, i))
+    closest_objects.sort()
+    closest_indexes = []
+    for obj, i in closest_objects[1:n+1]:
+        closest_indexes.append(i)
+    return closest_indexes
+
+
 def get_trees_and_centroids(train_data: pd.DataFrame, N: int, p: float):
     n = len(train_data.index)
     trees_and_centroids = []
-    for i in range(N):
-        sub_train_data = train_data.sample(int(n * p))
+    farthest_objects = n_farthest_objects_by_indexes(train_data, N)
+    roots = []
+    for obj in farthest_objects:
+        roots.append(obj[1])
+    for i in roots:
+        root = train_data.iloc[i]
+        closest_indexes = n_closest_objects_by_indexes(root, train_data, int(n * p))
+        sub_train_data = train_data.iloc[closest_indexes]
         centroid = np.array(sub_train_data.mean(axis=0))
         features = list(train_data)
         features.remove('diagnosis')
@@ -25,7 +62,7 @@ def get_sorted_distances(obj: pd.Series, trees_and_centroids: list):
         centroid_j = trees_and_centroids[j][1]
         euclidean_dist = np.linalg.norm(test_array - centroid_j)
         distances.append((euclidean_dist, j))
-    distances.sort()
+    distances.sort(reverse=True)
     return distances
 
 
@@ -62,7 +99,14 @@ def main():
     train_data = pd.read_csv("train.csv")
     test_data = pd.read_csv("test.csv")
 
-    print(KNN(train_data, test_data, N=4, K=3, p=0.3))
+    my_list = [1, 2, 3, 4, 5]
+    p_list = [0.3, 0.4, 0.5, 0.6, 0.7]
+    for p in p_list:
+        for n in my_list:
+            for k in my_list:
+                if k <= n:
+                    acc = KNN(train_data, test_data, N=n, K=k, p=p)
+                    print("p={} N={} K={} acc={}".format(p, n, k, acc))
 
 
 if __name__ == "__main__":

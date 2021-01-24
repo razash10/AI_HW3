@@ -2,18 +2,45 @@ from ID3 import ID3, DT_Classify
 import pandas as pd
 import numpy as np
 from collections import Counter
+import math
+
+
+def increase_train_data(train_data: pd.DataFrame, target_n: int):
+    current_n = len(train_data.index)
+    new_train_data = pd.DataFrame(train_data)
+
+    i = target_n - current_n  # number of rows to add
+    while i > 0:
+        for j, row in train_data.iterrows():
+            new_train_data.loc[current_n] = row
+            current_n += 1
+            i -= 1
+            if i == 0:
+                break
+
+    return new_train_data
 
 
 def get_trees_and_centroids(train_data: pd.DataFrame, N: int, p: float):
     n = len(train_data.index)
+
+    if N * p > 1:
+        target_n = int(math.ceil(n * N * p))
+        train_data = increase_train_data(train_data, target_n)
+
+    # train_data = train_data.sample(frac=1, random_state=311177034)  # shuffle
+
     trees_and_centroids = []
-    for i in range(N):
-        sub_train_data = train_data.sample(int(n * p))
+    features = list(train_data)
+    features.remove('diagnosis')
+
+    for i in range(int(math.ceil(n * p))):
+        sub_train_data = train_data[:N]
         centroid = np.array(sub_train_data.mean(axis=0))
-        features = list(train_data)
-        features.remove('diagnosis')
         train_tree = ID3(sub_train_data, features, None, M=0)
         trees_and_centroids.append((train_tree, centroid))
+        train_data = train_data.drop(list(sub_train_data.index.values))
+
     return trees_and_centroids
 
 
@@ -62,7 +89,17 @@ def main():
     train_data = pd.read_csv("train.csv")
     test_data = pd.read_csv("test.csv")
 
-    print(KNN(train_data, test_data, N=4, K=3, p=0.3))
+    my_list = [1, 2, 3, 4, 5]
+    p_list = [0.3, 0.4, 0.5, 0.6, 0.7]
+    acc_list = []
+    for p in p_list:
+        for n in my_list:
+            for k in my_list:
+                if k <= n:
+                    acc = KNN(train_data, test_data, N=n, K=k, p=p)
+                    acc_list.append(acc)
+                    print("p={} N={} K={} acc={}".format(p, n, k, acc))
+    print("min={} max={} avg={}".format(min(acc_list), max(acc_list), sum(acc_list)/len(acc_list)))
 
 
 if __name__ == "__main__":
