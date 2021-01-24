@@ -153,7 +153,7 @@ def train_and_test(train_data: pd.DataFrame, test_data: pd.DataFrame, M=0):
     return res
 
 
-# Add experiment() call below main() in the last line of this file
+# Change from main() to experiment() in the last line of this file
 def experiment():
     all_train_data = pd.read_csv("train.csv")
     kf = KFold(n_splits=5, shuffle=True, random_state=311177034)
@@ -220,4 +220,4 @@ def main():
 
 
 if __name__ == "__main__":
-    experiment()  # change from main() to experiment() for question 4.1
+    main()  # change from main() to experiment() for question 3.3
