@@ -28,9 +28,6 @@ class Node:
         prob_b = count_b / count_rows
         prob_m = count_m / count_rows
 
-        """if prob_b >= 0.5:
-                return 1"""
-
         log2_prob_b = math.log2(prob_b)
         log2_prob_m = math.log2(prob_m)
 
